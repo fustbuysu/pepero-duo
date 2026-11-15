@@ -1,0 +1,46 @@
+name: Publish game to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check game and lobby tests
+        run: |
+          node --check multiplayer.js
+          node tests/lobby.cjs
+      - name: Prepare public files
+        run: |
+          mkdir -p _site/vendor
+          cp index.html multiplayer.js _site/
+          touch _site/.nojekyll
+          cp vendor/peerjs.min.js vendor/peerjs.LICENSE _site/vendor/
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
